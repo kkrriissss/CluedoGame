@@ -1,0 +1,6 @@
+If none of the code works because of your machine, then refer to this:
+https://chatgpt.com/share/69234949-4190-8001-aa3f-fb6e3d5dc05b
+
+I code on Linux with wsl and I did the whole project there, and it worked there perfectly. After that I made a folder on my windows side of my machine and I did the same exact steps on chatgpt and it worked as well...
+
+Let me know if none of this works, or you can follow the chatgpt and ask questions accordingly to your situation. 
