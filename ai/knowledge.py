@@ -66,6 +66,21 @@ class ClueNotebook:
         if card in self.possible_rooms:
             self.possible_rooms.discard(card)
 
+    #This is to handle the case where nobody refutes a suggestion
+    def process_unrefuted_suggestion(self, triplet: Tuple[str, str, str]) -> None:
+        suspect, weapon, room = triplet
+
+        #not seen suspect card = killer
+        if suspect not in self.seen_cards:
+            self.possible_suspects = {suspect}
+        
+        #not seen weapon card = murder weapon
+        if weapon not in self.seen_cards:
+            self.possible_weapons = {weapon}
+            
+        #not seen room card = crime scene
+        if room not in self.seen_cards:
+            self.possible_rooms = {room}
 
 
     # ------------------------------------------------------------------
@@ -93,11 +108,13 @@ class ClueNotebook:
     # ------------------------------------------------------------------
     def score_room(self, room_name: str) -> float:
         #Checking how good it would be to go to another room.
-        base = float(len(self.possible_suspects) * len(self.possible_weapons))
-
-        #If the roome is not a possible room, reduce base score
+        
+        #When we know it's not the solution,
+        #This makes the AI avoid it unless it has absolutely no other choice.
         if room_name not in self.possible_rooms:
-            base *= 0.5
+            return -100.0
+
+        base = float(len(self.possible_suspects) * len(self.possible_weapons))
 
         visits = self.room_visit_count.get(room_name, 0)
         suggs = self.room_suggestion_count.get(room_name, 0)

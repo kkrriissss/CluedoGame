@@ -133,13 +133,14 @@ class AIPlayerController:
     #I divided it into multiple steps for clarity, since it would get super confusing otherwise.
     def choose_move_command(self, base_board, players, steps_remaining: int) -> str:
         #Decide one movement command.
+        #I imported is_occupied here to avoid crash ***
         from mechanics.movement import in_bounds, is_occupied
         from mechanics.movement import WALL_TILE
 
         row, col = self.player.position
         current_tile = base_board[row][col]
         # -------------------------------------------------------------
-        # STEP 0: INSIDE A ROOM (Room tiles or Secret Passage tiles)
+        # STEP 0: INSIDE A ROOM
         # -------------------------------------------------------------
 
         if self.player.in_room is not None and current_tile in "123456789%&":
@@ -214,6 +215,11 @@ class AIPlayerController:
                     
                     if room_name == self.nb.last_room:
                         continue 
+                    
+                    #Do not enter if we know it's not the solution
+                    if room_name not in self.nb.possible_rooms:
+                        continue
+
                     if not is_occupied(players, nr, nc, self.player):
                         return cmd
 
@@ -345,6 +351,11 @@ class AIPlayerController:
     ) -> bool:
         #At first I just made the AI always use secret passages,
         #but now I added some logic to it.
+        
+        #Never take a passage to a room we know is innocent.
+        if dest_room_name not in self.nb.possible_rooms:
+            return False
+
         if dest_room_name == self.nb.last_room:
             return False
 
@@ -373,6 +384,11 @@ class AIPlayerController:
         self,
         suggested_triplet: Tuple[str, str, str],
     ) -> bool:
+        
+        #NO ONE REFUTED the suggestion.
+        #The AI will update its knowledge.
+        self.nb.process_unrefuted_suggestion(suggested_triplet)
+
         hypo = self.nb.current_singleton_hypothesis()
         if hypo is None:
             return False
@@ -386,7 +402,7 @@ class AIPlayerController:
 
 
     # -------------------------------------------------
-    # Knowledge updates (seen cards)
+    # Knowledge updates - seen cards
     # -------------------------------------------------
     def note_seen_card(self, card_name: str):
         self.nb.note_seen_card(card_name)

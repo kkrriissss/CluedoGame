@@ -59,6 +59,16 @@ def make_suggestion(current_player: Player,
         room = room_name
         print(f"\nSuggestion: {suspect} with the {weapon} in the {room}.")
 
+    #Moving suspect to the room - Summon Rule
+    for p in players:
+        if p.name == suspect and p != current_player:
+            #Only move them if they aren't already there
+            if p.in_room != room_id:
+                p.move_to(current_player.position)
+                p.enter_room(room_id)
+                p.was_summoned = True
+                print(f"❗ {p.name} has been summoned to the {room}!")
+
     #resolve refutation
 
     print("\nResolving suggestion...")

@@ -1,8 +1,8 @@
 # entities/player.py
+#Players setup
+#Each player has a name, token, start position, 
+#current position, hand, room status, and AI controller status.
 
-
-#This is for the player class in Cluedo game.
-#Each character has a name, token, starting position, current position, hand of cards, room status, and AI attributes.
 class Player:
     def __init__(self, name: str, token: str, start_position: tuple[int, int]):
         self.name = name
@@ -14,19 +14,16 @@ class Player:
         self.is_ai: bool = False
         self.ai_controller = None
         self.ai = None
+        self.was_summoned: bool = False
 
     
-    
-    
-    
-    
-    #Basic helper methods for player actions.
+    # ------------- basic helpers -------------
     def move_to(self, pos: tuple[int, int]) -> None:
-        #Move the token to a new (row, col) on the board.
+        #Move the token to a new position
         self.position = pos
 
     def enter_room(self, room_id: int) -> None:
-        #Mark this player as being in the given room.
+        #Player in room
         self.in_room = room_id
 
         controller = self.ai_controller or self.ai
@@ -37,11 +34,14 @@ class Player:
                 pass
 
     def exit_room(self) -> None:
+        #Player leaving room
         self.in_room = None
 
     def has_card(self, card: str) -> bool:
+        #Check if player has a specific card
         return card in self.hand
 
     def reset_to_start(self) -> None:
+        #Reset player position and room state (not usually needed in game loop)
         self.position = self.start_position
         self.in_room = None
