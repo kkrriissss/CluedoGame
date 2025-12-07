@@ -103,27 +103,34 @@ class ClueNotebook:
 
 
 
-# ------------------------------------------------------------------
+    # ------------------------------------------------------------------
     # Room scoring for movement / secret passages
     # ------------------------------------------------------------------
     def score_room(self, room_name: str) -> float:
-        """
-        Calculates a score for a room to decide if the AI should move there.
-        Higher score = Better target.
-        """
+        #Checking how good it would be to go to another room.
         
-        # 1. If we know this room is INNOCENT (eliminated), avoid it!
-        # We give it a massive negative score so the AI only goes here if blocked elsewhere.
+        #When we know it's not the solution,
+        #This makes the AI avoid it unless it has absolutely no other choice.
         if room_name not in self.possible_rooms:
             return -100.0
 
-        # 2. STRATEGY UPDATE: "Drilling / Camping"
-        # If the room is still in 'possible_rooms', it means it might be the Crime Scene.
-        # We give it a HIGH flat score (50.0). 
-        # Because we removed the 'last_room' penalty, the AI will now happily
-        # turn around and go right back into this room to guess again and again
-        # until someone shows a card to prove it innocent.
-        return 50.0
+        base = float(len(self.possible_suspects) * len(self.possible_weapons))
+
+        visits = self.room_visit_count.get(room_name, 0)
+        suggs = self.room_suggestion_count.get(room_name, 0)
+
+        #This was another main trouble that I faced.
+        #I had to tune these penalty values to get good performance.
+        visit_penalty = 5.0 * visits
+        sugg_penalty = 20.0 * suggs
+
+        score = base - visit_penalty - sugg_penalty
+
+        #This prevents the AI from going back and forth between two rooms.
+        if self.last_room == room_name:
+            score -= 100.0
+
+        return score
 
 
 
