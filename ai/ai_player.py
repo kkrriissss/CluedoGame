@@ -32,10 +32,6 @@ class AIPlayerController:
 
     #Check if we can win immediately
     def check_for_winning_accusation(self) -> Optional[Tuple[str, str, str]]:
-        """
-        Checks the notebook to see if we have a 100% confident solution.
-        Returns (suspect, weapon, room) if yes, None otherwise.
-        """
         return self.nb.current_singleton_hypothesis()
     
 
