@@ -34,9 +34,9 @@ SECRET_PASSAGES = {
 #Where the player token should appear when arriving
 #via a secret passage. These coordinates are inside here and these would swap when using the passage.
 SECRET_PASSAGE_POSITIONS = {
-    1: (2, 7),    # Kitchen '%' 
-    9: (22, 25),  # Study '%'
-    3: (6, 24),   # Conservatory '&'
-    7: (20, 2),   # Lounge '&'
+    1: (2, 7),    #Kitchen  
+    9: (22, 25),  #Study
+    3: (6, 24),   #Conservatory
+    7: (20, 2),   #Lounge
 }
 

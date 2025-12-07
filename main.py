@@ -7,8 +7,8 @@ from board.rooms import SECRET_PASSAGES, SECRET_PASSAGE_POSITIONS, get_room_name
 import time
 
 
+#final printing for win
 def print_victory_screen(winner_name: str, turn_count: int):
-    """Prints a pretty game over screen."""
     print("\n" + "★" * 50)
     print("★" + " " * 48 + "★")
     print(f"★   🏆 CONGRATULATIONS! {winner_name.upper()} WINS! 🏆    ★")
@@ -18,8 +18,10 @@ def print_victory_screen(winner_name: str, turn_count: int):
     print("★" * 50 + "\n")
 
 
+#Main game loop
 def main():
-    # If the person wants to see the debug info
+
+    #This if for testing but if the player wants to see the solution and cards
     debug_choice = input(
         "Show debug info (solution and player cards)? (y/n): "
     ).strip().lower()
@@ -31,8 +33,8 @@ def main():
     turn_count = 1
     autoplay = False
 
+    #Checking if the players are eliminated
     while True:
-        # Check if active players remain
         active_players = [p for p in players if not p.is_eliminated]
         if not active_players:
             print("\n" + "="*40)
@@ -43,18 +45,16 @@ def main():
 
         current_player = players[current_player_index % len(players)]
 
-        # --- SKIP ELIMINATED PLAYERS ---
+        #skip the eliminated players
         if current_player.is_eliminated:
             current_player_index = (current_player_index + 1) % len(players)
             continue
 
-        # Checking Ai or human
         is_ai = getattr(current_player, "is_ai", False)
         ai_ctrl = getattr(current_player, "ai", None)
 
-        # -----------------------------------------------------
-        # 1. SUMMON RULE (Start of Turn)
-        # -----------------------------------------------------
+
+        #1. Summon rule - connected with suggestion.py
         if getattr(current_player, "was_summoned", False):
             print(f"\n❗ {current_player.name} was summoned to the {get_room_name(current_player.in_room)}!")
             
@@ -77,8 +77,7 @@ def main():
                 if game_over:
                     print_victory_screen(current_player.name, turn_count)
                     break
-                
-                # Check for self-elimination
+            
                 if current_player.is_eliminated:
                     print(f"({current_player.name} lost the turn due to wrong accusation.)")
 
@@ -86,9 +85,7 @@ def main():
                 turn_count += 1
                 continue
 
-        # -----------------------------------------------------
-        # 2. SECRET PASSAGE (Start of Turn)
-        # -----------------------------------------------------
+        #2. If they are not summoned, the next best thing is to check for secret passages
         if current_player.in_room in SECRET_PASSAGES and not current_player.is_eliminated:
             dest_room_id = SECRET_PASSAGES[current_player.in_room]
             dest_room_name = get_room_name(dest_room_id)
@@ -121,12 +118,10 @@ def main():
                 turn_count += 1
                 continue
 
-        # -----------------------------------------------------
-        # 3. REGULAR TURN (Move or Accuse)
-        # -----------------------------------------------------
+        #3. Regular turn, you can move or accuse
         choice = None
 
-        # --- AI BRAIN CHECK ---
+        #for the Ai 
         if is_ai:
             winning_hypo = ai_ctrl.check_for_winning_accusation()
             if winning_hypo:

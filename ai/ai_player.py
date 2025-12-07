@@ -42,7 +42,7 @@ class AIPlayerController:
 
 
 
-    # Movement choice - With BFS pathfinding
+    #BFS movement
     def _build_door_to_room_map(self, base_board) -> Dict[Tuple[int, int], int]:
         
         #Scan the board for door tiles 'X'.
@@ -54,7 +54,7 @@ class AIPlayerController:
             for c in range(cols):
                 if base_board[r][c] != "X":
                     continue
-                #Check 4-neighborhood for room interior
+
                 room_id: Optional[int] = None
                 for dr, dc in DIR_VECTORS.values():
                     nr, nc = r + dr, c + dc
@@ -68,7 +68,7 @@ class AIPlayerController:
         return door_map
 
     def _bfs_distances(self, base_board, start: Tuple[int, int]):
-        # BFS over hallway/door tiles ('.' and 'X') starting from 'start'.
+        #BFS over hallway/door tiles from start
         from mechanics.movement import in_bounds
 
         rows = len(base_board)
@@ -153,13 +153,11 @@ class AIPlayerController:
 
         row, col = self.player.position
         current_tile = base_board[row][col]
-        # -------------------------------------------------------------
-        # STEP 0: INSIDE A ROOM
-        # -------------------------------------------------------------
 
+        #STEP 0: INSIDE A ROOM
         if self.player.in_room is not None and current_tile in "123456789%&":
             
-            # 0a: If adjacent to a door ('X'), TAKE IT (unless blocked).
+            #0a: If adjacent to a door ('X'), TAKE IT (unless blocked).
             for cmd in DIRECTION_COMMANDS:
                 dr, dc = DIR_VECTORS[cmd]
                 nr, nc = row + dr, col + dc
@@ -212,11 +210,9 @@ class AIPlayerController:
 
 
 
-        # -------------------------------------------------------------
-        # STEP 1: STANDING ON A DOOR ('X')
-        # -------------------------------------------------------------
+        #STEP 1 - STANDING ON A DOOR ('X')
         if current_tile == "X":
-            # Priority: Enter the room if we didn't just leave it.
+            #Enter the room if we didn't just leave it.
             for cmd in DIRECTION_COMMANDS:
                 dr, dc = DIR_VECTORS[cmd]
                 nr, nc = row + dr, col + dc
@@ -238,10 +234,7 @@ class AIPlayerController:
                         return cmd
 
 
-
-        # -------------------------------------------------------------
-        # STEP 2-5: BFS PATHFINDING - Main Movement Logic
-        # -------------------------------------------------------------
+        #STEP 2-5: BFS main movement
         door_map = self._build_door_to_room_map(base_board)
         dist, prev = self._bfs_distances(base_board, (row, col))
 
@@ -255,8 +248,8 @@ class AIPlayerController:
 
             room_name = get_room_name(room_id)
             
-            # Heavy penalty if this is the last room we visited. This is basically to mimic human-like
-            # behavior of not immediately re-entering a room we just left.
+            #Heavy penalty if this is the last room we visited. This is basically to mimic human-like
+            #behavior of not immediately re-entering a room we just left.
             if room_name == self.nb.last_room:
                 pass
 
@@ -276,9 +269,7 @@ class AIPlayerController:
                     return cmd
 
 
-        # -------------------------------------------------------------
-        # STEP 6: FALLBACK (Adjacent to Door?)
-        # -------------------------------------------------------------
+        # STEP 6: FALLBACK if next to door
         for cmd in DIRECTION_COMMANDS:
             dr, dc = DIR_VECTORS[cmd]
             nr, nc = row + dr, col + dc
@@ -289,11 +280,9 @@ class AIPlayerController:
 
 
 
-        # -------------------------------------------------------------
-        # STEP 7: FINAL FALLBACK (Random Valid Move)
-        # -------------------------------------------------------------
+        #STEP 7: FINAL FALLBACK Random Valid Move
         tried = set()
-        for _ in range(15): # Increased tries
+        for _ in range(15):
             cmd = random.choice(DIRECTION_COMMANDS)
             if cmd in tried: continue
             tried.add(cmd)
@@ -317,9 +306,8 @@ class AIPlayerController:
 
 
 
-    # -------------------------------------------------
-    # Room entry notification
-    # -------------------------------------------------
+
+    #Room entry notification
     def note_entered_room(self, room_id: int) -> None:
         room_name = get_room_name(room_id)
         self.nb.note_room_visit(room_name)
@@ -329,9 +317,7 @@ class AIPlayerController:
 
 
 
-    # -------------------------------------------------
-    # Suggestion choice
-    # -------------------------------------------------
+    #Suggestion choice
     def choose_suggestion(
         self,
         room_name: str,
@@ -355,9 +341,7 @@ class AIPlayerController:
 
 
 
-    # -------------------------------------------------
-    # Secret passage decision
-    # -------------------------------------------------
+    #Secret passage decision
     def decide_use_secret_passage(
         self,
         current_room_name: str,
@@ -376,7 +360,7 @@ class AIPlayerController:
         score_current = self.nb.score_room(current_room_name)
         score_dest = self.nb.score_room(dest_room_name)
 
-        # 1. Is destination better than staying?
+        #Check if destination is better than staying
         if score_dest <= score_current:
              return False
         max_score = -float('inf')
@@ -391,9 +375,7 @@ class AIPlayerController:
 
 
 
-    # -------------------------------------------------
-    # Accusation decision
-    # -------------------------------------------------
+    #Accusation decision
     def decide_accusation_from_suggestion(
         self,
         suggested_triplet: Tuple[str, str, str],
@@ -414,10 +396,7 @@ class AIPlayerController:
 
 
 
-
-    # -------------------------------------------------
     # Knowledge updates - seen cards
-    # -------------------------------------------------
     def note_seen_card(self, card_name: str):
         self.nb.note_seen_card(card_name)
 

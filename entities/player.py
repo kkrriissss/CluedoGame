@@ -15,18 +15,16 @@ class Player:
         self.ai_controller = None
         self.ai = None
         self.was_summoned: bool = False
-        
-        # NEW: Track if player is eliminated (lost accusation)
         self.is_eliminated: bool = False
 
     
     # ------------- basic helpers -------------
+    #Move player to a new position
     def move_to(self, pos: tuple[int, int]) -> None:
-        # Move the token to a new position
         self.position = pos
 
+    #Enter room
     def enter_room(self, room_id: int) -> None:
-        # Player in room
         self.in_room = room_id
 
         controller = self.ai_controller or self.ai
@@ -36,15 +34,14 @@ class Player:
             except AttributeError:
                 pass
 
+    #Exit room
     def exit_room(self) -> None:
-        # Player leaving room
         self.in_room = None
 
+    #Check if player has a specific card
     def has_card(self, card: str) -> bool:
-        # Check if player has a specific card
         return card in self.hand
 
     def reset_to_start(self) -> None:
-        # Reset player position and room state (not usually needed in game loop)
         self.position = self.start_position
         self.in_room = None

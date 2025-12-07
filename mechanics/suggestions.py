@@ -11,8 +11,8 @@ from entities.player import Player
 import random
 
 
+#User choice
 def _choose_from_list(prompt: str, options: Sequence[str]) -> str:
-    # Getting user choice from a list of options
     while True:
         print(prompt)
         for i, opt in enumerate(options, start=1):
@@ -33,11 +33,11 @@ def _players_in_turn_order(start_index: int, players: List[Player]):
         yield players[(start_index + offset) % n]
 
 
+
+#Main suggestion function
 def make_suggestion(current_player: Player,
                     players: List[Player],
                     solution: Dict[str, str]) -> bool:
-    # Main suggestion function
-    # If accusation is correct, the game ends
     if current_player.in_room is None:
         print(f"{current_player.name} is not in a room; cannot make a suggestion.")
         return False
@@ -46,8 +46,6 @@ def make_suggestion(current_player: Player,
     room_name = get_room_name(room_id)
 
     print(f"\n{current_player.name} is in the {room_name} and may make a suggestion.")
-
-    # choose suspect & weapon
     if current_player.is_ai:
         suspect, weapon, room = current_player.ai.choose_suggestion(room_name)
         print(f"AI suggestion: {suspect} with the {weapon} in the {room}.")
@@ -57,25 +55,27 @@ def make_suggestion(current_player: Player,
         room = room_name
         print(f"\nSuggestion: {suspect} with the {weapon} in the {room}.")
 
-    # Moving suspect to the room - Summon Rule
+    #Moving suspect to the room - Summon Rule
     for p in players:
         if p.name == suspect and p != current_player:
-            # Only move them if they aren't already there
             if p.in_room != room_id:
                 p.move_to(current_player.position)
                 p.enter_room(room_id)
                 p.was_summoned = True
                 print(f"❗ {p.name} has been summoned to the {room}!")
 
-    # resolve refutation
-
+    #Resolve refutation
     print("\nResolving suggestion...")
     suggester_index = players.index(current_player)
     suggested_cards = (suspect, weapon, room)
 
-    # Main refutation loop
+    
+    
+    
+    
+    
+    #Main refutation loop
     for p in _players_in_turn_order(suggester_index, players):
-        # Can this player refute?
         matches = [card for card in p.hand if card in suggested_cards]
         if not matches:
             print(f"{p.name} cannot refute.")
@@ -88,14 +88,14 @@ def make_suggestion(current_player: Player,
             shown_card = matches[0]
             print(f"{p.name} (AI) shows a card to {current_player.name}.")
         else:
-            # Human refuter chooses which card to show
+            #When human player is refuting, I let them choose which card to show
             shown_card = _choose_from_list(
                 f"{p.name}, choose a card to show {current_player.name}:",
                 matches,
             )
             print(f"{p.name} shows a card to {current_player.name}.")
 
-        # Update AI notebook / inform human player
+        #Updating ai notebook for knowledge
         if current_player.is_ai:
             current_player.ai.note_seen_card(shown_card)
         else:
@@ -104,7 +104,7 @@ def make_suggestion(current_player: Player,
 
     print("\nNo one could refute the suggestion!")
 
-    # accusation decision logic (OPTIONAL follow-up to suggestion)
+    #Accusation decision logic
     want_accuse = False
     if current_player.is_ai:
         want_accuse = current_player.ai.decide_accusation_from_suggestion(
@@ -124,26 +124,23 @@ def make_suggestion(current_player: Player,
     if not want_accuse:
         return False
 
-    # Resolve accusation. 
+    #Resolve accusation. 
     return _resolve_accusation(current_player, suspect, weapon, room, solution)
 
 
+
+#Final accusation function. This will end the game of the player if they are wrong
 def make_accusation_standalone(current_player: Player, solution: Dict[str, str]) -> bool:
-    """
-    Allows a player to make an accusation at any time (from the menu), 
-    choosing ANY room (not just the one they are in).
-    """
     print(f"\n⚠️  {current_player.name} is making a FORMAL ACCUSATION! ⚠️")
     print("This is a game-ending move. If you are wrong, you are eliminated.")
 
     if current_player.is_ai:
-        # Simple AI fallback if called directly, though typically AI calls this via logic
-        # For now, let's assume AI uses its best singleton hypothesis
+        #Simple AI fallback if called directly
         hypo = current_player.ai.nb.current_singleton_hypothesis()
         if hypo:
             suspect, weapon, room = hypo
         else:
-            # AI shouldn't really be here if it's not sure, but fallback to random to prevent crash
+            #Mainly for human accusation testing
             suspect = random.choice(SUSPECTS)
             weapon = random.choice(WEAPONS)
             room = random.choice(ROOMS)
@@ -175,16 +172,15 @@ def _resolve_accusation(player: Player,
         and room == solution["room"]
     )
 
+    #Game over if accusation right
     if correct:
         print("\n✅ ACCUSATION IS CORRECT! 🎉")
         print(f"{player.name} has solved the mystery and WINS the game!")
-        return True # Game Over (Win)
+        return True
     
     print("\n❌ ACCUSATION IS WRONG.")
     print(f"{player.name} is ELIMINATED from making further accusations/moves.")
     print("They remain in the game to refute suggestions.")
     
-    # NEW LOGIC: Do not remove player. Just mark as eliminated.
     player.is_eliminated = True
-    
-    return False # Game continues (Player eliminated)
+    return False

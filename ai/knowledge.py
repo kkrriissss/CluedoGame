@@ -23,16 +23,10 @@ class ClueNotebook:
         self.all_suspects: Set[str] = set(suspects)
         self.all_weapons: Set[str] = set(weapons)
         self.all_rooms: Set[str] = set(rooms)
-
-        #Current candidates (still possible to be in the solution)
         self.possible_suspects: Set[str] = set(self.all_suspects)
         self.possible_weapons: Set[str] = set(self.all_weapons)
         self.possible_rooms: Set[str] = set(self.all_rooms)
-
-        #Cards seen
         self.seen_cards: Set[str] = set()
-
-        # Room visit / suggestion tracking
         self.room_visit_count: Dict[str, int] = {r: 0 for r in self.all_rooms}
         self.room_suggestion_count: Dict[str, int] = {r: 0 for r in self.all_rooms}
         self.last_room: Optional[str] = None
@@ -40,9 +34,7 @@ class ClueNotebook:
 
 
 
-    # ------------------------------------------------------------------
     # Card knowledge tracking
-    # ------------------------------------------------------------------
     def note_own_hand(self, cards: Iterable[str]) -> None:
         #If a card is in our own hand, we note it as seen.
         #Also it cannot be in the solution so we eliminate it from candidates.
@@ -83,9 +75,7 @@ class ClueNotebook:
             self.possible_rooms = {room}
 
 
-    # ------------------------------------------------------------------
-    # Room tracking
-    # ------------------------------------------------------------------
+    #Room tracking
     def note_room_visit(self, room_name: str) -> None:
         #Record that just entered room
         if room_name in self.room_visit_count:
@@ -103,9 +93,7 @@ class ClueNotebook:
 
 
 
-    # ------------------------------------------------------------------
-    # Room scoring for movement / secret passages
-    # ------------------------------------------------------------------
+    #Room scoring for movement / secret passages
     def score_room(self, room_name: str) -> float:
         #Checking how good it would be to go to another room.
         
@@ -134,9 +122,7 @@ class ClueNotebook:
 
 
 
-    # ------------------------------------------------------------------
-    # Candidate choice for suggestions
-    # ------------------------------------------------------------------
+    #Candidate choice for suggestions
     def choose_suspect_candidate(self) -> str:
         import random
         if self.possible_suspects:
@@ -150,10 +136,7 @@ class ClueNotebook:
         return random.choice(list(self.all_weapons))
 
 
-
-    # ------------------------------------------------------------------
-    # Current best guess 
-    # ------------------------------------------------------------------
+    #Current best guess 
     def current_singleton_hypothesis(self) -> Optional[Tuple[str, str, str]]:
         if (
             len(self.possible_suspects) == 1
@@ -168,9 +151,7 @@ class ClueNotebook:
 
 
 
-    # ------------------------------------------------------------------
-    # Debug
-    # ------------------------------------------------------------------
+    #Debug
     def debug_summary(self) -> str:
         lines = []
         lines.append("=== NOTEBOOK SUMMARY ===")
