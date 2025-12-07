@@ -2,13 +2,24 @@ from game.setup import setup_game, overlay_players_on_board
 from board.renderer import visualize_board
 from board.grid import print_board
 from mechanics.movement import move_player_turn
-from mechanics.suggestions import make_suggestion
+from mechanics.suggestions import make_suggestion, make_accusation_standalone
 from board.rooms import SECRET_PASSAGES, SECRET_PASSAGE_POSITIONS, get_room_name
 import time
 
 
+def print_victory_screen(winner_name: str, turn_count: int):
+    """Prints a pretty game over screen."""
+    print("\n" + "★" * 50)
+    print("★" + " " * 48 + "★")
+    print(f"★   🏆 CONGRATULATIONS! {winner_name.upper()} WINS! 🏆    ★")
+    print("★" + " " * 48 + "★")
+    print(f"★            Total Turns: {turn_count:<23} ★")
+    print("★" + " " * 48 + "★")
+    print("★" * 50 + "\n")
+
+
 def main():
-    #If the person wants to see the debug info
+    # If the person wants to see the debug info
     debug_choice = input(
         "Show debug info (solution and player cards)? (y/n): "
     ).strip().lower()
@@ -21,20 +32,29 @@ def main():
     autoplay = False
 
     while True:
-        if not players:
+        # Check if active players remain
+        active_players = [p for p in players if not p.is_eliminated]
+        if not active_players:
             print("\n" + "="*40)
-            print("       GAME OVER - NO WINNERS")
+            print("       GAME OVER - ALL PLAYERS ELIMINATED")
             print(f"       Total Turns: {turn_count}")
             print("="*40)
             break
 
         current_player = players[current_player_index % len(players)]
 
+        # --- SKIP ELIMINATED PLAYERS ---
+        if current_player.is_eliminated:
+            current_player_index = (current_player_index + 1) % len(players)
+            continue
+
         # Checking Ai or human
         is_ai = getattr(current_player, "is_ai", False)
         ai_ctrl = getattr(current_player, "ai", None)
 
-        #Summon Rule at the start of the turn
+        # -----------------------------------------------------
+        # 1. SUMMON RULE (Start of Turn)
+        # -----------------------------------------------------
         if getattr(current_player, "was_summoned", False):
             print(f"\n❗ {current_player.name} was summoned to the {get_room_name(current_player.in_room)}!")
             
@@ -42,7 +62,6 @@ def main():
             current_player.was_summoned = False
 
             if autoplay and is_ai:
-                #Taking the free suggestion since it would save turns
                 print(f"[AUTOPLAY] AI {current_player.name} chooses to STAY and suggest.")
                 time.sleep(0.05)
                 stay_choice = True
@@ -50,43 +69,36 @@ def main():
                 print(f"AI {current_player.name} chooses to STAY and suggest.")
                 stay_choice = True
             else:
-                #Human choice
                 ans = input("Do you want to stay and make a suggestion? (y/n): ").strip().lower()
                 stay_choice = ans.startswith("y")
 
             if stay_choice:
                 game_over = make_suggestion(current_player, players, solution)
                 if game_over:
-                    print("\n" + "#"*40)
-                    print(f"   🏆 GAME OVER! 🏆")
-                    print(f"   Winner: {current_player.name}")
-                    print(f"   Total Turns: {turn_count}")
-                    print("#"*40)
+                    print_victory_screen(current_player.name, turn_count)
                     break
                 
-                #End turn immediately after the "pulled" suggestion
+                # Check for self-elimination
+                if current_player.is_eliminated:
+                    print(f"({current_player.name} lost the turn due to wrong accusation.)")
+
                 current_player_index = (current_player_index + 1) % len(players)
                 turn_count += 1
                 continue
 
-        #Secret passage option at the START of the turn
-        if current_player.in_room in SECRET_PASSAGES:
+        # -----------------------------------------------------
+        # 2. SECRET PASSAGE (Start of Turn)
+        # -----------------------------------------------------
+        if current_player.in_room in SECRET_PASSAGES and not current_player.is_eliminated:
             dest_room_id = SECRET_PASSAGES[current_player.in_room]
             dest_room_name = get_room_name(dest_room_id)
             current_room_name = get_room_name(current_player.in_room)
 
-            #Choosing to use secret passage
-            #If AI, call AI method
             if is_ai and ai_ctrl is not None and hasattr(ai_ctrl, "decide_use_secret_passage"):
-                use_sp = ai_ctrl.decide_use_secret_passage(
-                    current_room_name,
-                    dest_room_name,
-                )
+                use_sp = ai_ctrl.decide_use_secret_passage(current_room_name, dest_room_name)
             else:
-                #For human players
                 ans = input(
-                    f"\n{current_player.name} is in the {current_room_name}, "
-                    f"which has a secret passage.\n"
+                    f"\n{current_player.name} is in the {current_room_name}, which has a secret passage.\n"
                     f"Use secret passage to the {dest_room_name}? (y/n): "
                 ).strip().lower()
                 use_sp = ans.startswith("y")
@@ -95,39 +107,46 @@ def main():
                 target_pos = SECRET_PASSAGE_POSITIONS[dest_room_id]
                 current_player.move_to(target_pos)
                 current_player.enter_room(dest_room_id)
-
                 print(f"{current_player.name} uses the secret passage to the {dest_room_name}!")
 
                 game_over = make_suggestion(current_player, players, solution)
                 if game_over:
-                    print("\n" + "#"*40)
-                    print(f"   🏆 GAME OVER! 🏆")
-                    print(f"   Winner: {current_player.name}")
-                    print(f"   Total Turns: {turn_count}")
-                    print("#"*40)
-                    return
+                    print_victory_screen(current_player.name, turn_count)
+                    break
+                
+                if current_player.is_eliminated:
+                     print(f"({current_player.name} lost the turn.)")
 
-                #End of turn
                 current_player_index = (current_player_index + 1) % len(players)
                 turn_count += 1
                 continue
 
-        #Regular turn menu
-        #Check if current player is AI and Autoplay is enabled
-        
-        if autoplay and is_ai:
-            print(f"\n[AUTOPLAY] Turn {turn_count}: AI {current_player.name} is moving...")
-            time.sleep(0.05)
-            choice = "m"
-        else:
+        # -----------------------------------------------------
+        # 3. REGULAR TURN (Move or Accuse)
+        # -----------------------------------------------------
+        choice = None
+
+        # --- AI BRAIN CHECK ---
+        if is_ai:
+            winning_hypo = ai_ctrl.check_for_winning_accusation()
+            if winning_hypo:
+                print(f"\n💡 AI {current_player.name} has deduced the solution! Making accusation...")
+                time.sleep(1)
+                choice = "x"
+            elif autoplay:
+                print(f"\n[AUTOPLAY] Turn {turn_count}: AI {current_player.name} is moving...")
+                time.sleep(0.05)
+                choice = "m"
+
+        if choice is None:
             print("\n=== GAME MENU ===")
             print(f"(Turn {turn_count} | Current turn: {current_player.name} [{current_player.token}])")
             print("p - print board")
             print("w - open visual map")
             print("m - move current player")
+            print("x - make accusation (any room)")
             print(f"a - toggle autoplay (currently {'ON' if autoplay else 'OFF'})")
             print("q - quit")
-
             choice = input("\nEnter choice: ").strip().lower()
 
         if choice == "a":
@@ -135,7 +154,7 @@ def main():
             print(f"Autoplay is now {'ON' if autoplay else 'OFF'}.")
             continue
 
-        if choice == "p":
+        elif choice == "p":
             board_with_players = overlay_players_on_board(base_board, players)
             print("\n=== CURRENT BOARD (CLI) ===\n")
             print_board(board_with_players)
@@ -144,6 +163,17 @@ def main():
             board_with_players = overlay_players_on_board(base_board, players)
             print("\n=== OPENING VISUAL MAP ===")
             visualize_board(board_with_players)
+
+        elif choice == "x":
+            game_over = make_accusation_standalone(current_player, solution)
+            if game_over:
+                print_victory_screen(current_player.name, turn_count)
+                break
+            
+            if current_player.is_eliminated:
+                current_player_index = (current_player_index + 1) % len(players)
+                turn_count += 1
+            continue
 
         elif choice == "m":
             print(f"\n--- {current_player.name}'s turn ---")
@@ -154,11 +184,7 @@ def main():
                 game_over = make_suggestion(current_player, players, solution)
 
             if game_over:
-                print("\n" + "#"*40)
-                print(f"   🏆 GAME OVER! 🏆")
-                print(f"   Winner: {current_player.name}")
-                print(f"   Total Turns: {turn_count}")
-                print("#"*40)
+                print_victory_screen(current_player.name, turn_count)
                 break
 
             current_player_index = (current_player_index + 1) % len(players)

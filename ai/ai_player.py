@@ -27,6 +27,20 @@ class AIPlayerController:
 
         if self.player.hand:
             self.nb.note_own_hand(self.player.hand)
+    
+
+
+    #Check if we can win immediately
+    def check_for_winning_accusation(self) -> Optional[Tuple[str, str, str]]:
+        """
+        Checks the notebook to see if we have a 100% confident solution.
+        Returns (suspect, weapon, room) if yes, None otherwise.
+        """
+        return self.nb.current_singleton_hypothesis()
+    
+
+
+
 
     # Movement choice - With BFS pathfinding
     def _build_door_to_room_map(self, base_board) -> Dict[Tuple[int, int], int]:
@@ -213,10 +227,9 @@ class AIPlayerController:
                     room_id = int(tile)
                     room_name = get_room_name(room_id)
                     
-                    if room_name == self.nb.last_room:
-                        continue 
+                    # (Last Room check deleted here)
                     
-                    #Do not enter if we know it's not the solution
+                    # Do not enter if we know it's not the solution
                     if room_name not in self.nb.possible_rooms:
                         continue
 
@@ -269,8 +282,24 @@ class AIPlayerController:
             dr, dc = DIR_VECTORS[cmd]
             nr, nc = row + dr, col + dc
             if not in_bounds(base_board, nr, nc): continue
+            
+            # If the neighbor is a DOOR, we must check if it's a "good" door.
             if base_board[nr][nc] == "X":
                 if not is_occupied(players, nr, nc, self.player):
+                    
+                    # --- BUG FIX: OSCILLATION PREVENTION ---
+                    # Don't blindly jump on a door if the room behind it is known-innocent.
+                    # We reuse the door_map we built earlier in Step 2.
+                    if (nr, nc) in door_map:
+                        room_id = door_map[(nr, nc)]
+                        room_name = get_room_name(room_id)
+                        
+                        # If we already know this room is innocent, treat this door 
+                        # like a wall (ignore it) so we don't get stuck in a loop.
+                        if room_name not in self.nb.possible_rooms:
+                            continue 
+                    # ---------------------------------------
+
                     return cmd
 
 

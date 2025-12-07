@@ -1,6 +1,6 @@
-#mechanics/suggestions.py
-#Suggestion / refutation / accusation logic.
-#It does for both human and AI players.
+# mechanics/suggestions.py
+# Suggestion / refutation / accusation logic.
+# It does for both human and AI players.
 
 
 from __future__ import annotations
@@ -8,10 +8,11 @@ from typing import List, Dict, Tuple, Sequence, Optional
 from game.cards import SUSPECTS, WEAPONS, ROOMS
 from board.rooms import get_room_name
 from entities.player import Player
+import random
 
 
 def _choose_from_list(prompt: str, options: Sequence[str]) -> str:
-    #Getting user choice from a list of options
+    # Getting user choice from a list of options
     while True:
         print(prompt)
         for i, opt in enumerate(options, start=1):
@@ -32,14 +33,11 @@ def _players_in_turn_order(start_index: int, players: List[Player]):
         yield players[(start_index + offset) % n]
 
 
-
-
-
 def make_suggestion(current_player: Player,
                     players: List[Player],
                     solution: Dict[str, str]) -> bool:
-    #Main suggestion function
-    #If accusation is correct, the game ends
+    # Main suggestion function
+    # If accusation is correct, the game ends
     if current_player.in_room is None:
         print(f"{current_player.name} is not in a room; cannot make a suggestion.")
         return False
@@ -49,7 +47,7 @@ def make_suggestion(current_player: Player,
 
     print(f"\n{current_player.name} is in the {room_name} and may make a suggestion.")
 
-    #choose suspect & weapon
+    # choose suspect & weapon
     if current_player.is_ai:
         suspect, weapon, room = current_player.ai.choose_suggestion(room_name)
         print(f"AI suggestion: {suspect} with the {weapon} in the {room}.")
@@ -59,29 +57,25 @@ def make_suggestion(current_player: Player,
         room = room_name
         print(f"\nSuggestion: {suspect} with the {weapon} in the {room}.")
 
-    #Moving suspect to the room - Summon Rule
+    # Moving suspect to the room - Summon Rule
     for p in players:
         if p.name == suspect and p != current_player:
-            #Only move them if they aren't already there
+            # Only move them if they aren't already there
             if p.in_room != room_id:
                 p.move_to(current_player.position)
                 p.enter_room(room_id)
                 p.was_summoned = True
                 print(f"❗ {p.name} has been summoned to the {room}!")
 
-    #resolve refutation
+    # resolve refutation
 
     print("\nResolving suggestion...")
     suggester_index = players.index(current_player)
     suggested_cards = (suspect, weapon, room)
 
-
-
-
-
-    #Main refutation loop
+    # Main refutation loop
     for p in _players_in_turn_order(suggester_index, players):
-        #Can this player refute?
+        # Can this player refute?
         matches = [card for card in p.hand if card in suggested_cards]
         if not matches:
             print(f"{p.name} cannot refute.")
@@ -89,19 +83,19 @@ def make_suggestion(current_player: Player,
 
         print(f"{p.name} CAN refute the suggestion.")
 
-        #Refuter shows a card
+        # Refuter shows a card
         if p.is_ai:
             shown_card = matches[0]
             print(f"{p.name} (AI) shows a card to {current_player.name}.")
         else:
-            #Human refuter chooses which card to show
+            # Human refuter chooses which card to show
             shown_card = _choose_from_list(
                 f"{p.name}, choose a card to show {current_player.name}:",
                 matches,
             )
             print(f"{p.name} shows a card to {current_player.name}.")
 
-        #Update AI notebook / inform human player
+        # Update AI notebook / inform human player
         if current_player.is_ai:
             current_player.ai.note_seen_card(shown_card)
         else:
@@ -110,8 +104,7 @@ def make_suggestion(current_player: Player,
 
     print("\nNo one could refute the suggestion!")
 
-
-    #accusation decision logic
+    # accusation decision logic (OPTIONAL follow-up to suggestion)
     want_accuse = False
     if current_player.is_ai:
         want_accuse = current_player.ai.decide_accusation_from_suggestion(
@@ -131,10 +124,50 @@ def make_suggestion(current_player: Player,
     if not want_accuse:
         return False
 
+    # Resolve accusation. 
+    return _resolve_accusation(current_player, suspect, weapon, room, solution)
 
-    #Resolve accusation. If wrong you remove player from game
-    print("\n=== ACCUSATION ===")
-    print(f"{current_player.name} accuses: {suspect} with the {weapon} in the {room}!")
+
+def make_accusation_standalone(current_player: Player, solution: Dict[str, str]) -> bool:
+    """
+    Allows a player to make an accusation at any time (from the menu), 
+    choosing ANY room (not just the one they are in).
+    """
+    print(f"\n⚠️  {current_player.name} is making a FORMAL ACCUSATION! ⚠️")
+    print("This is a game-ending move. If you are wrong, you are eliminated.")
+
+    if current_player.is_ai:
+        # Simple AI fallback if called directly, though typically AI calls this via logic
+        # For now, let's assume AI uses its best singleton hypothesis
+        hypo = current_player.ai.nb.current_singleton_hypothesis()
+        if hypo:
+            suspect, weapon, room = hypo
+        else:
+            # AI shouldn't really be here if it's not sure, but fallback to random to prevent crash
+            suspect = random.choice(SUSPECTS)
+            weapon = random.choice(WEAPONS)
+            room = random.choice(ROOMS)
+        print(f"AI Accusation: {suspect}, {weapon}, {room}")
+    else:
+        suspect = _choose_from_list("Accuse Suspect:", SUSPECTS)
+        weapon = _choose_from_list("Accuse Weapon:", WEAPONS)
+        room = _choose_from_list("Accuse Room:", ROOMS)
+        print(f"\nCONFIRM ACCUSATION: {suspect} with the {weapon} in the {room}")
+        confirm = input("Are you sure? (y/n): ").strip().lower()
+        if not confirm.startswith('y'):
+            print("Accusation cancelled.")
+            return False
+
+    return _resolve_accusation(current_player, suspect, weapon, room, solution)
+
+
+def _resolve_accusation(player: Player, 
+                        suspect: str, 
+                        weapon: str, 
+                        room: str, 
+                        solution: Dict[str, str]) -> bool:
+    
+    print(f"\nChecking envelope... {player.name} accuses: {suspect}, {weapon}, {room}")
 
     correct = (
         suspect == solution["suspect"]
@@ -144,14 +177,14 @@ def make_suggestion(current_player: Player,
 
     if correct:
         print("\n✅ ACCUSATION IS CORRECT! 🎉")
-        print(f"{current_player.name} has solved the mystery and WINS the game!")
-        return True
+        print(f"{player.name} has solved the mystery and WINS the game!")
+        return True # Game Over (Win)
+    
     print("\n❌ ACCUSATION IS WRONG.")
-    print(f"{current_player.name} is eliminated from the game.")
-    players.remove(current_player)
-
-    if not players:
-        print("All players eliminated. No one solved the mystery.")
-        return True
-
-    return False
+    print(f"{player.name} is ELIMINATED from making further accusations/moves.")
+    print("They remain in the game to refute suggestions.")
+    
+    # NEW LOGIC: Do not remove player. Just mark as eliminated.
+    player.is_eliminated = True
+    
+    return False # Game continues (Player eliminated)
